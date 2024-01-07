@@ -876,7 +876,7 @@ class CC3200Connection(object):
                  (storage_id, offset, size))
 
         # XXX 4096 works faster, but 256 was sniffed from the uniflash
-        chunk_size = 4096
+        chunk_size = 256
         rx_data = b''
         while size - len(rx_data) > 0:
             rx_data += self._read_chunk(offset + len(rx_data),
