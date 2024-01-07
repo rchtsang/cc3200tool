@@ -1,0 +1,11 @@
+name: cc3200
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - pip
+  - libusb
+  - pyusb
+  - pip:
+    - pyftdi
+    - pyserial

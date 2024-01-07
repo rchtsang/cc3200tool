@@ -111,3 +111,20 @@ of arguments. Some examples:
     # Replace the existing ca.der on the flash (only works if the new file isn't bigger than the old one, experimental!)
     cc3200tool -if cc32xx-flash.bin -of cc32xx-flash.custom.bin -d cc32xx write_file customca.der /cert/ca.der
 
+
+## Update to use [PyFtdi](https://eblot.github.io/pyftdi/index.html)
+
+Alas, for new versions of MacOS (Monterey and later), the CC3200 may not always appear on `/dev/tty`, while still appearing as a connected USB device. 
+
+PyFtdi is a user-space driver for popular FTDI devices, implemented in python, with relatively few dependencies. If the CC3200 still shows up as a USB device, we can use PyFtdi to define a custom connection interface that will allow us access to the emulation and virtual COM ports that the CC3200 exposes via its FT2232D. (See Sec 2.4.4 of [Launchpad User's Guide](https://www.ti.com/lit/ug/swru372c/swru372c.pdf)) The inspiration for this came from a [post on TI's E2E](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1309466/cc3200-launchxl-target-reset-via-usb).
+
+Additional Usage:
+
+    # format and upload an application binary
+    cc3200tool -p ftdi://ti:launchpad:cc3101/2 --sop2 ~dtr --reset prompt \
+        format_flash --size 1M \
+        write_file exe/program.bin /sys/mcuimg.bin
+
+
+
+

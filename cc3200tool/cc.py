@@ -30,6 +30,11 @@ from collections import namedtuple
 import json
 
 import serial
+from pyftdi.ftdi import Ftdi as ftdi
+from pyftdi.serialext import serial_for_url
+
+ftdi.add_custom_vendor(0x0451, 'ti')
+ftdi.add_custom_product(0x0451,0xc32a,'launchpad')
 
 log = logging.getLogger()
 logging.basicConfig(stream=sys.stderr, level=logging.INFO,
@@ -178,8 +183,9 @@ class PathType(object):
 parser = argparse.ArgumentParser(description='Serial flash utility for CC3200')
 
 parser.add_argument(
-        "-p", "--port", type=str, default="/dev/ttyUSB0",
-        help="The serial port to use")
+        "-p", "--port", type=str, default='ftdi://ti:launchpad:cc3101/2', #"/dev/ttyUSB0"
+        help="The serial port to use. Can also be in pyserial device url format "
+             "(e.g. 'ftdi://ti:launchpad:cc3101/2')")
 parser.add_argument(
         "-if", "--image_file", type=str, default=None,
         help="Use a image file instead of serial link (read)")
@@ -1358,7 +1364,7 @@ def main():
     
     else:
         try:
-            p = serial.Serial(
+            p = serial_for_url(
                 port_name, baudrate=CC3200_BAUD, parity=serial.PARITY_NONE,
                 stopbits=serial.STOPBITS_ONE)
         except (Exception, ) as e:
