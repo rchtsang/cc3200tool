@@ -32,6 +32,16 @@ import json
 import serial
 from pyftdi.ftdi import Ftdi as ftdi
 from pyftdi.serialext import serial_for_url
+from pyftdi.misc import to_bps
+
+from pyterm import MiniTerm
+
+try:
+    raw_input
+except NameError:
+    # pylint: disable=redefined-builtin,invalid-name
+    raw_input = input   # in python3 it's "raw"
+    unichr = chr
 
 ftdi.add_custom_vendor(0x0451, 'ti')
 ftdi.add_custom_product(0x0451,0xc32a,'launchpad')
@@ -120,6 +130,16 @@ def pinarg(extra=None):
 
 def auto_int(x):
     return int(x, 0)
+
+
+def key_description(character):
+    """generate a readable description for a key"""
+    ascii_code = ord(character)
+    if ascii_code < 32:
+        return 'Ctrl+{:c}'.format(ord('@') + ascii_code)
+    else:
+        return repr(character)
+
 
 class PathType(object):
     def __init__(self, exists=True, type='file', dash_ok=True):
@@ -303,6 +323,18 @@ parser_write_all_files.add_argument(
 parser_write_all_files.add_argument(
         "--simulate", action="store_false",
         help="List all files to be written and skip writing them")
+
+
+parser_term = subparsers.add_parser(
+        "term",
+        help="Starts a pyserial term on the port (overrides all other commands)")
+parser_term.add_argument(
+        "baudrate", type=int, 
+        help="Specify the baud rate of the port")
+parser_term.add_argument(
+        "--debug", action='store_true',
+        help="Miniterm debugging mode")
+
 
 def dll_data(fname):
     return get_data('cc3200tool', os.path.join('dll', fname))
@@ -1339,6 +1371,41 @@ def split_argv(cmdline_args):
     if args:
         yield args
 
+def term(port, baud, debug=False):
+    """
+    run a uart mini term based on ftdi's pyterm
+    """
+    # because pyserial miniterm is still broken?
+    # https://github.com/pyserial/pyserial/issues/570
+    # issue was closed, but i still get the issue...
+    try:
+        # serial_instance = serial_for_url(
+        #     port, baudrate=baud, parity=serial.PARITY_NONE,
+        #     stopbits=serial.STOPBITS_ONE,
+        #     bytesize=serial.EIGHTBITS)
+
+        miniterm = MiniTerm(
+            device=port,
+            baudrate=to_bps(baud),
+            parity=serial.PARITY_NONE,
+            rtscts=False,
+            debug=debug)
+
+        miniterm.run(
+            fullmode=True,
+            loopback=False,
+            silent=False,
+            localecho=False,
+            autocr=False)
+
+    except (IOError, ValueError) as exc:
+        print('\nError: %s' % exc, file=stderr)
+        if debug:
+            print(format_exc(chain=False), file=stderr)
+        sysexit(1)
+    except KeyboardInterrupt:
+        sysexit(2)
+
 
 def main():
     commands = []
@@ -1358,6 +1425,17 @@ def main():
         sys.exit(-3)
 
     port_name = args.port
+
+    # term overrules other commands, since it has a different baud rate. exit on termination
+    # determine if present.
+    term_cmd = None
+    for cmd in commands:
+        if cmd.cmd == "term":
+            term_cmd = cmd
+            break
+    if term_cmd:
+        term(port_name, term_cmd.baudrate, term_cmd.debug)
+        return 0
 
     if not args.image_file is None:
         cc = CC3200Connection(None, reset_method, sop2_method, erase_timeout=args.erase_timeout, device=args.device, image_file=args.image_file, output_file=args.output_file)
